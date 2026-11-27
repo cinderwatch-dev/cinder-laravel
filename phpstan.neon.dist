@@ -1,0 +1,14 @@
+parameters:
+    level: 6
+
+    paths:
+        - src
+        - config
+
+    # Saloon, Livewire and Horizon are optional, so their classes come from test stubs.
+    scanFiles:
+        - tests/Fixtures/Stubs/horizon.php
+        - tests/Fixtures/Stubs/livewire.php
+        - tests/Fixtures/Stubs/saloon.php
+
+    tmpDir: build/phpstan
