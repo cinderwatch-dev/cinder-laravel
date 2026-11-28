@@ -2,6 +2,16 @@
 
 All notable changes to `cinderwatch/cinder-laravel` are documented here.
 
+## [1.1.0] - 2026-11-28
+
+### Added
+
+- Bind `Cinderwatch\Transport\Transport` in your app to deliver telemetry your own way. The default stays `SyncTransport`.
+
+### Fixed
+
+- Telemetry sent over HTTP now gives up after `timeoutSeconds` when Guzzle is installed, instead of waiting with no timeout.
+
 ## [1.0.0] - 2026-11-27
 
 First stable release.

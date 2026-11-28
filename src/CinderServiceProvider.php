@@ -29,7 +29,9 @@ use Cinderwatch\Laravel\Tracing\TraceRequests;
 use Cinderwatch\Support\DeployedRevision;
 use Cinderwatch\Transport\BufferedTransport;
 use Cinderwatch\Transport\SyncTransport;
+use Cinderwatch\Transport\Transport;
 use DateTimeImmutable;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -49,6 +51,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Psr\Http\Client\ClientInterface;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -104,9 +107,18 @@ class CinderServiceProvider extends PackageServiceProvider
             );
         });
 
+        $this->app->bindIf(SyncTransport::class, function ($app): SyncTransport {
+            $config = $app->make(CinderConfig::class);
+
+            return new SyncTransport($config, $this->httpClient($config));
+        });
+
+        // Bind Transport::class in your app to deliver telemetry another way.
+        $this->app->bindIf(Transport::class, fn ($app): Transport => $app->make(SyncTransport::class));
+
         $this->app->singleton(CinderClient::class, function ($app): CinderClient {
             $config = $app->make(CinderConfig::class);
-            $transport = new BufferedTransport(new SyncTransport($config));
+            $transport = new BufferedTransport($app->make(Transport::class));
             $client = new CinderClient($config, $transport);
             $client->addEnricher($app->make(RequestContextEnricher::class));
 
@@ -175,6 +187,18 @@ class CinderServiceProvider extends PackageServiceProvider
         }
 
         $this->registerTelemetryFlush();
+    }
+
+    /**
+     * A Guzzle client that gives up after the configured timeout, so a slow or unreachable
+     * Cinder never holds the request. Without Guzzle the discovered PSR-18 client is used.
+     */
+    protected function httpClient(CinderConfig $config): ?ClientInterface
+    {
+        return class_exists(GuzzleClient::class) ? new GuzzleClient([
+            'connect_timeout' => min(2, $config->timeoutSeconds),
+            'timeout' => $config->timeoutSeconds,
+        ]) : null;
     }
 
     protected function registerHealthServices(): void

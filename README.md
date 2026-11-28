@@ -18,6 +18,7 @@ This package was developed to give you a quick start to sending errors, logs, pe
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
   - [Deployed Commit](#deployed-commit)
+  - [Delivery](#delivery)
 - [Error Reporting](#error-reporting)
   - [Reporting Manually](#reporting-manually)
   - [Filtering Reports](#filtering-reports)
@@ -155,6 +156,23 @@ CINDER_VCS_MESSAGE="Fix checkout totals"
 A configured revision always wins, and the branch and message are only used alongside it. The commit message is left
 out once git has packed the commit (after `git gc`), because reading it would mean unpacking git's object store. Set
 `CINDER_VCS_DETECT=false` to turn detection off.
+
+### Delivery
+
+Telemetry is buffered during the request and sent when it ends. Each send gives up after `timeoutSeconds` (5 seconds by
+default, 2 of them to connect) when Guzzle is installed, so a slow or unreachable Cinder never holds your request for
+long. Without Guzzle, the discovered PSR-18 client is used, so set a timeout on it yourself.
+
+To deliver telemetry another way, for example by queueing it, bind your own `Cinderwatch\Transport\Transport` in a
+service provider. Cinder still buffers it and flushes at the end of each request and job:
+
+```php
+use Cinderwatch\Transport\Transport;
+
+$this->app->bind(Transport::class, fn () => new QueuedTransport);
+```
+
+`Cinderwatch\Transport\SyncTransport` stays bound to the default HTTP transport, so your transport can fall back to it.
 
 ## Error Reporting
 
